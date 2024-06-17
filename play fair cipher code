@@ -1,0 +1,160 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define SIZE 5
+
+void generateKeyTable(char key[], char keyTable[SIZE][SIZE]) {
+    int i, j, k;
+    int len = strlen(key);
+    int map[26] = {0};
+
+    // Fill key table with the key
+    for (i = 0, k = 0; k < len; k++) {
+        if (key[k] != 'J' && map[key[k] - 'A'] == 0) {
+            keyTable[i / SIZE][i % SIZE] = key[k];
+            map[key[k] - 'A'] = 1;
+            i++;
+        }
+    }
+
+    // Fill the remaining letters in the key table
+    for (char ch = 'A'; ch <= 'Z'; ch++) {
+        if (ch != 'J' && map[ch - 'A'] == 0) {
+            keyTable[i / SIZE][i % SIZE] = ch;
+            i++;
+        }
+    }
+}
+
+void preprocessText(char text[], char processedText[]) {
+    int len = strlen(text);
+    int k = 0;
+
+    for (int i = 0; i < len; i++) {
+        if (text[i] == 'J') {
+            processedText[k++] = 'I';
+        } else if (isalpha(text[i])) {
+            processedText[k++] = toupper(text[i]);
+        }
+    }
+    processedText[k] = '\0';
+}
+
+void createDigraphs(char text[], char digraphs[][2], int *digraphCount) {
+    int len = strlen(text);
+    int k = 0;
+
+    for (int i = 0; i < len; i++) {
+        digraphs[k][0] = text[i];
+        if (i + 1 < len && text[i] == text[i + 1]) {
+            digraphs[k][1] = 'X';
+        } else if (i + 1 < len) {
+            digraphs[k][1] = text[++i];
+        } else {
+            digraphs[k][1] = 'X';
+        }
+        k++;
+    }
+    *digraphCount = k;
+}
+
+void getPosition(char keyTable[SIZE][SIZE], char ch, int *row, int *col) {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (keyTable[i][j] == ch) {
+                *row = i;
+                *col = j;
+                return;
+            }
+        }
+    }
+}
+
+void encryptDigraph(char digraph[], char keyTable[SIZE][SIZE]) {
+    int row1, col1, row2, col2;
+    getPosition(keyTable, digraph[0], &row1, &col1);
+    getPosition(keyTable, digraph[1], &row2, &col2);
+
+    if (row1 == row2) {
+        digraph[0] = keyTable[row1][(col1 + 1) % SIZE];
+        digraph[1] = keyTable[row2][(col2 + 1) % SIZE];
+    } else if (col1 == col2) {
+        digraph[0] = keyTable[(row1 + 1) % SIZE][col1];
+        digraph[1] = keyTable[(row2 + 1) % SIZE][col2];
+    } else {
+        digraph[0] = keyTable[row1][col2];
+        digraph[1] = keyTable[row2][col1];
+    }
+}
+
+void decryptDigraph(char digraph[], char keyTable[SIZE][SIZE]) {
+    int row1, col1, row2, col2;
+    getPosition(keyTable, digraph[0], &row1, &col1);
+    getPosition(keyTable, digraph[1], &row2, &col2);
+
+    if (row1 == row2) {
+        digraph[0] = keyTable[row1][(col1 + SIZE - 1) % SIZE];
+        digraph[1] = keyTable[row2][(col2 + SIZE - 1) % SIZE];
+    } else if (col1 == col2) {
+        digraph[0] = keyTable[(row1 + SIZE - 1) % SIZE][col1];
+        digraph[1] = keyTable[(row2 + SIZE - 1) % SIZE][col2];
+    } else {
+        digraph[0] = keyTable[row1][col2];
+        digraph[1] = keyTable[row2][col1];
+    }
+}
+
+void playfairEncrypt(char text[], char key[], char encryptedText[]) {
+    char keyTable[SIZE][SIZE];
+    char processedText[100] = "";
+    char digraphs[50][2];
+    int digraphCount, i;
+
+    generateKeyTable(key, keyTable);
+    preprocessText(text, processedText);
+    createDigraphs(processedText, digraphs, &digraphCount);
+
+    for (i = 0; i < digraphCount; i++) {
+        encryptDigraph(digraphs[i], keyTable);
+        encryptedText[2 * i] = digraphs[i][0];
+        encryptedText[2 * i + 1] = digraphs[i][1];
+    }
+    encryptedText[2 * digraphCount] = '\0';
+}
+
+void playfairDecrypt(char text[], char key[], char decryptedText[]) {
+    char keyTable[SIZE][SIZE];
+    char processedText[100] = "";
+    char digraphs[50][2];
+    int digraphCount, i;
+
+    generateKeyTable(key, keyTable);
+    preprocessText(text, processedText);
+    createDigraphs(processedText, digraphs, &digraphCount);
+
+    for (i = 0; i < digraphCount; i++) {
+        decryptDigraph(digraphs[i], keyTable);
+        decryptedText[2 * i] = digraphs[i][0];
+        decryptedText[2 * i + 1] = digraphs[i][1];
+    }
+    decryptedText[2 * digraphCount] = '\0';
+}
+
+int main() {
+    char key[100], text[100], encryptedText[100], decryptedText[100];
+
+    printf("Enter the key (no spaces, use 'I' instead of 'J'): ");
+    scanf("%s", key);
+
+    printf("Enter the message to encrypt: ");
+    scanf("%s", text);
+
+    playfairEncrypt(text, key, encryptedText);
+    printf("Encrypted message: %s\n", encryptedText);
+
+    playfairDecrypt(encryptedText, key, decryptedText);
+    printf("Decrypted message: %s\n", decryptedText);
+
+    return 0;
+}
